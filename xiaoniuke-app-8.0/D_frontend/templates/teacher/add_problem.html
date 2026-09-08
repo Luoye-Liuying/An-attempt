@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+{% block title %}新增题目 - 小牛客{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 960px;">
+    <div class="page-header">
+        <h1>📝 新增题目</h1>
+        <a href="/teacher/dashboard" class="btn btn-outline btn-sm">← 返回列表</a>
+    </div>
+
+    <div class="card">
+        <form method="POST" action="/teacher/problems/add" onsubmit="return prepareSubmit()">
+            <!-- 标题 -->
+            <div class="form-group">
+                <label for="title">题目标题 *</label>
+                <input type="text" id="title" name="title"
+                       class="form-control" placeholder="例如：两数之和"
+                       required>
+            </div>
+
+            <!-- 难度 -->
+            <div class="form-group">
+                <label for="difficulty">难度等级</label>
+                <select id="difficulty" name="difficulty" class="form-control">
+                    <option value="easy">🟢 简单</option>
+                    <option value="medium">🟡 中等</option>
+                    <option value="hard">🔴 困难</option>
+                </select>
+            </div>
+
+            <!-- 标签 -->
+            <div class="form-group">
+                <label for="tag-input">知识点标签</label>
+                <div class="tag-input-wrapper">
+                    <div class="tag-chips" id="tag-chips"></div>
+                    <input type="text" id="tag-input"
+                           class="tag-text-input"
+                           placeholder="输入标签后按回车或逗号添加"
+                           autocomplete="off">
+                </div>
+                <input type="hidden" id="tags" name="tags" value="">
+                <span class="form-hint">按 <strong>回车键</strong> 或 <strong>逗号</strong> 添加标签</span>
+            </div>
+
+            <!-- 题目描述 -->
+            <div class="form-group">
+                <label for="statement">题目描述 *</label>
+                <textarea id="statement" name="statement"
+                          class="form-control" rows="8"
+                          placeholder="请输入完整的题目描述，包括输入输出格式说明、示例等..."
+                          required></textarea>
+            </div>
+
+            <!-- AI 生成按钮 -->
+            <div class="form-group" style="background:#F0F7FF; padding:16px; border-radius:8px; border:1px dashed var(--primary);">
+                <label style="margin-bottom:8px;">🤖 AI 辅助生成</label>
+                <p style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">
+                    点击按钮，AI 将根据题目标题和描述自动生成参考解答和10组测试用例
+                </p>
+                <button type="button" id="ai-generate-btn" class="btn btn-outline" onclick="aiGenerate()">
+                    ✨ AI 生成答案和测试用例
+                </button>
+                <span id="ai-status" style="margin-left:10px; font-size:13px; color:var(--text-secondary);"></span>
+            </div>
+
+            <!-- 参考解答 -->
+            <div class="form-group">
+                <label for="standard_answer">参考解答 (Python) *</label>
+                <textarea id="standard_answer" name="standard_answer"
+                          class="form-control" rows="8"
+                          placeholder="# 输入参考代码（学生编译通过后可查看）&#10;# 代码应使用 input() 读取输入，print() 输出结果"
+                          style="font-family: 'Fira Code', 'Consolas', monospace;"></textarea>
+                <span class="form-hint">参考解答用于展示给学生参考，也是 AI 评分的重要依据</span>
+            </div>
+
+            <!-- 测试用例 -->
+            <div class="form-group">
+                <label>🧪 测试用例</label>
+                <p style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">
+                    每组测试用例包含 <strong>输入</strong> 和 <strong>期望输出</strong>，
+                    共10组，每组10分。学生代码会逐组运行并比对输出。
+                </p>
+                <div id="test-cases-container" style="max-height:400px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; padding:12px; background:var(--bg);">
+                    <div id="test-cases-list"></div>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="addTestCase()" style="margin-top:8px;">
+                        + 添加测试用例
+                    </button>
+                </div>
+                <input type="hidden" id="test_cases_json" name="test_cases_json" value="">
+                <span class="form-hint">
+                    已添加 <strong id="tc-count">0</strong> 组测试用例
+                    （建议10组，每组10分）
+                </span>
+            </div>
+
+            <input type="hidden" name="use_ai" id="use_ai" value="false">
+
+            <!-- 按钮区 -->
+            <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
+                <a href="/teacher/dashboard" class="btn btn-outline">取消</a>
+                <button type="submit" class="btn btn-primary">✅ 发布题目</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ===== 标签管理 =====
+var tagSet = [];
+
+function renderTags() {
+    var container = document.getElementById('tag-chips');
+    container.innerHTML = '';
+    tagSet.forEach(function(tag, index) {
+        var chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.innerHTML = tag + '<span class="tag-chip-remove" onclick="removeTag(' + index + ')">✕</span>';
+        container.appendChild(chip);
+    });
+    document.getElementById('tags').value = tagSet.join(',');
+}
+
+function addTag(tag) {
+    tag = tag.trim();
+    if (tag && tagSet.indexOf(tag) === -1) {
+        tagSet.push(tag);
+        renderTags();
+    }
+}
+
+function removeTag(index) {
+    tagSet.splice(index, 1);
+    renderTags();
+}
+
+document.getElementById('tag-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        var val = this.value.replace(',', '').trim();
+        if (val) { addTag(val); this.value = ''; }
+    }
+});
+
+document.getElementById('tag-input').addEventListener('blur', function() {
+    var val = this.value.trim();
+    if (val) { addTag(val); this.value = ''; }
+});
+
+document.querySelector('.tag-input-wrapper').addEventListener('click', function(e) {
+    if (e.target === this || e.target.id === 'tag-chips') {
+        document.getElementById('tag-input').focus();
+    }
+});
+
+// ===== 测试用例管理 =====
+var testCases = [];
+
+function renderTestCases() {
+    var container = document.getElementById('test-cases-list');
+    container.innerHTML = '';
+    testCases.forEach(function(tc, index) {
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex; gap:8px; margin-bottom:8px; align-items:center;';
+        row.innerHTML =
+            '<span style="font-size:12px; color:var(--text-light); min-width:30px;">#' + (index + 1) + '</span>' +
+            '<input type="text" class="form-control" style="flex:1; font-family:monospace; font-size:13px;"' +
+            '  placeholder="输入，如: 1 3" value="' + escapeHtml(tc.input) + '"' +
+            '  onchange="testCases[' + index + '].input = this.value; syncTestCases();">' +
+            '<span style="color:var(--text-light);">→</span>' +
+            '<input type="text" class="form-control" style="flex:1; font-family:monospace; font-size:13px;"' +
+            '  placeholder="期望输出，如: 4" value="' + escapeHtml(tc.output) + '"' +
+            '  onchange="testCases[' + index + '].output = this.value; syncTestCases();">' +
+            '<button type="button" class="btn btn-sm btn-danger" style="min-width:30px;"' +
+            '  onclick="removeTestCase(' + index + ')">✕</button>';
+        container.appendChild(row);
+    });
+    document.getElementById('tc-count').textContent = testCases.length;
+    syncTestCases();
+}
+
+function addTestCase() {
+    testCases.push({input: '', output: ''});
+    renderTestCases();
+}
+
+function removeTestCase(index) {
+    testCases.splice(index, 1);
+    renderTestCases();
+}
+
+function syncTestCases() {
+    // 过滤掉空的测试用例
+    var valid = testCases.filter(function(tc) { return tc.input.trim() || tc.output.trim(); });
+    document.getElementById('test_cases_json').value = JSON.stringify(valid);
+    document.getElementById('tc-count').textContent = valid.length;
+}
+
+function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ===== AI 生成 =====
+async function aiGenerate() {
+    var title = document.getElementById('title').value.trim();
+    var statement = document.getElementById('statement').value.trim();
+    if (!title || !statement) {
+        alert('请先填写题目标题和题目描述');
+        return;
+    }
+
+    var btn = document.getElementById('ai-generate-btn');
+    var status = document.getElementById('ai-status');
+    btn.disabled = true;
+    btn.textContent = '⏳ 生成中...';
+    status.textContent = 'AI 正在思考...';
+
+    var formData = new FormData();
+    formData.append('title', title);
+    formData.append('statement', statement);
+    formData.append('tags', document.getElementById('tags').value);
+    formData.append('difficulty', document.getElementById('difficulty').value);
+
+    try {
+        var resp = await fetch('/teacher/problems/ai-generate', {
+            method: 'POST',
+            body: formData
+        });
+        var data = await resp.json();
+
+        if (data.success) {
+            // 填充标准答案
+            if (data.standard_answer && !document.getElementById('standard_answer').value.trim()) {
+                document.getElementById('standard_answer').value = data.standard_answer;
+            }
+            // 填充测试用例
+            if (data.test_cases && data.test_cases.length > 0) {
+                testCases = data.test_cases;
+                renderTestCases();
+            }
+            status.textContent = '✅ 生成成功！已自动填充';
+            status.style.color = 'var(--success)';
+        } else {
+            status.textContent = '❌ ' + (data.error || '生成失败');
+            status.style.color = 'var(--danger)';
+        }
+    } catch (e) {
+        status.textContent = '❌ 网络错误，请重试';
+        status.style.color = 'var(--danger)';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '✨ AI 生成答案和测试用例';
+    }
+}
+
+function prepareSubmit() {
+    // 确保标签已同步
+    var input = document.getElementById('tag-input');
+    if (input.value.trim()) { addTag(input.value.trim()); }
+    document.getElementById('tags').value = tagSet.join(',');
+
+    // 确保测试用例已同步
+    syncTestCases();
+    return true;
+}
+
+// 初始化：3 个空的测试用例输入
+document.addEventListener('DOMContentLoaded', function() {
+    // 预添加 3 行空测试用例方便填写
+    for (var i = 0; i < 3; i++) { addTestCase(); }
+});
+</script>
+{% endblock %}

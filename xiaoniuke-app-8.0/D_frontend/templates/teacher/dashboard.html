@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}题库管理 - 小牛客{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- 统计卡片 -->
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="stat-number">{{ total_count }}</div>
+            <div class="stat-label">📚 全部题目</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ my_count }}</div>
+            <div class="stat-label">📝 我创建的</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ easy_count }}</div>
+            <div class="stat-label">🟢 简单</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ medium_count }}</div>
+            <div class="stat-label">🟡 中等</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ hard_count }}</div>
+            <div class="stat-label">🔴 困难</div>
+        </div>
+    </div>
+
+    <!-- 页面头部 -->
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div class="card-header" style="margin-bottom:0; padding:14px 20px;">
+            <span>📋 题目管理</span>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <a href="/teacher/dashboard" class="btn btn-sm {% if not my_only %}btn-primary{% else %}btn-outline{% endif %}">全部题目</a>
+                <a href="/teacher/dashboard?my_only=1" class="btn btn-sm {% if my_only == '1' %}btn-primary{% else %}btn-outline{% endif %}">我的题目</a>
+                <a href="/teacher/problems/add" class="btn btn-primary btn-sm">+ 新增题目</a>
+            </div>
+        </div>
+
+        <!-- 搜索 -->
+        <form method="GET" action="/teacher/dashboard" style="padding:10px 20px; border-bottom:1px solid var(--border);">
+            <div style="display:flex; gap:8px;">
+                <input type="text" name="search" value="{{ current_search }}"
+                       class="form-control" placeholder="🔍 搜索题目标题..." style="max-width:360px;">
+                <button type="submit" class="btn btn-primary btn-sm">搜索</button>
+                {% if current_search %}
+                <a href="/teacher/dashboard{% if my_only == '1' %}?my_only=1{% endif %}" class="btn btn-outline btn-sm">清除</a>
+                {% endif %}
+            </div>
+            {% if my_only %}<input type="hidden" name="my_only" value="1">{% endif %}
+        </form>
+
+        {% if request.query_params.get('added') %}
+        <div class="alert alert-success">✅ 题目添加成功！</div>
+        {% elif request.query_params.get('updated') %}
+        <div class="alert alert-success">✅ 题目更新成功！</div>
+        {% elif request.query_params.get('deleted') %}
+        <div class="alert alert-info">🗑️ 题目已删除。</div>
+        {% endif %}
+        {% if all_tags %}
+        <div style="padding:8px 20px; border-bottom:1px solid var(--border); display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+            <span style="font-size:12px; color:var(--text-light);">标签：</span>
+            {% for t in all_tags %}
+            <a href="/teacher/dashboard?tag={{ t }}{% if my_only == '1' %}&my_only=1{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}"
+               class="btn btn-sm {% if current_tag == t %}btn-primary{% else %}btn-outline{% endif %}" style="font-size:11px;">{{ t }}</a>
+            {% endfor %}
+            {% if current_tag %}
+            <a href="/teacher/dashboard{% if my_only == '1' %}?my_only=1{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}"
+               class="btn btn-sm btn-outline" style="font-size:11px;">清除标签</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% if problems %}
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>题目标题</th>
+                    <th>出题老师</th>
+                    <th>难度</th>
+                    <th>标签</th>
+                    <th>提交</th>
+                    <th>得分率</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in problems %}
+                <tr>
+                    <td>{{ p.display_order }}</td>
+                    <td><strong>{{ p.title }}</strong></td>
+                    <td><span style="font-size:13px; color:var(--text-secondary);">👨‍🏫 {{ (p.creator.display_name or p.creator.username) if p.creator else '—' }}</span></td>
+                    <td>
+                        {% if p.difficulty.value == 'easy' %}<span class="badge badge-easy">简单</span>
+                        {% elif p.difficulty.value == 'medium' %}<span class="badge badge-medium">中等</span>
+                        {% else %}<span class="badge badge-hard">困难</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if p.tags %}
+                            {% for tag in p.tags.split(',') %}
+                            <span class="badge" style="background:#EBF3FC;color:#4A90D9;margin-right:4px;">{{ tag.strip() }}</span>
+                            {% endfor %}
+                        {% else %}<span style="color:var(--text-light);">—</span>{% endif %}
+                    </td>
+                    <td>
+                        {% set sc = problem_submission_counts.get(p.id, 0) %}
+                        {% if sc > 0 %}
+                        <a href="/teacher/problems/{{ p.id }}/submissions" class="btn btn-sm btn-outline" title="查看学生提交详情">👥 {{ sc }}次</a>
+                        {% else %}
+                        <span style="font-size:12px; color:var(--text-light);">0次</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set rate = problem_score_rates.get(p.id) %}
+                        {% if rate is not none %}
+                        <span class="badge" style="font-weight:600; {% if rate >= 80 %}background:#F6FFED;color:#389E0D{% elif rate >= 50 %}background:#FFF7E6;color:#D46B08{% else %}background:#FFF1F0;color:#CF1322{% endif %};">{{ rate }}%</span>
+                        {% else %}<span style="color:var(--text-light);font-size:12px;">—</span>{% endif %}
+                    </td>
+                    <td class="actions">
+                        {% if p.created_by == user.id %}
+                        <a href="/teacher/problems/{{ p.id }}/edit" class="btn btn-outline btn-sm">✏️</a>
+                        <a href="/teacher/problems/{{ p.id }}/delete" class="btn btn-danger btn-sm"
+                           onclick="return confirm('确定要删除「{{ p.title }}」吗？')">🗑️</a>
+                        {% else %}
+                        <a href="/teacher/problems/{{ p.id }}/view" class="btn btn-outline btn-sm">👁️ 查看</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- 分页 -->
+        {% if total_pages > 1 %}
+        <div style="display:flex; justify-content:center; gap:8px; padding:14px;">
+            {% if page > 1 %}
+            <a href="/teacher/dashboard?page={{ page - 1 }}{% if my_only == '1' %}&my_only=1{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}"
+               class="btn btn-sm btn-outline">← 上一页</a>
+            {% endif %}
+            <span style="padding:5px 12px; font-size:13px; color:var(--text-secondary);">第 {{ page }}/{{ total_pages }} 页</span>
+            {% if page < total_pages %}
+            <a href="/teacher/dashboard?page={{ page + 1 }}{% if my_only == '1' %}&my_only=1{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}"
+               class="btn btn-sm btn-outline">下一页 →</a>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <p>还没有题目，点击上方按钮添加第一道题吧！</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}{% endblock %}

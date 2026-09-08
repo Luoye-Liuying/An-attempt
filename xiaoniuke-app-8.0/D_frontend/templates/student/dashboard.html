@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}题库 - 小牛客{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>📝 题库</h1>
+        <span style="color: var(--text-secondary); font-size: 14px;">
+            共 {{ total_count }} 道题目{% if current_search %}（搜索: "{{ current_search }}"）{% endif %}
+        </span>
+    </div>
+
+    <!-- 搜索框 -->
+    <form method="GET" action="/student/dashboard" style="margin-bottom:12px;">
+        <div style="display:flex; gap:8px;">
+            <input type="text" name="search" value="{{ current_search }}"
+                   class="form-control" placeholder="🔍 搜索题目标题..."
+                   style="max-width:400px;">
+            <button type="submit" class="btn btn-primary btn-sm">搜索</button>
+            {% if current_search %}
+            <a href="/student/dashboard{% if current_difficulty %}?difficulty={{ current_difficulty }}{% endif %}{% if current_tag %}&tag={{ current_tag }}{% endif %}"
+               class="btn btn-outline btn-sm">清除</a>
+            {% endif %}
+        </div>
+        {% if current_difficulty %}<input type="hidden" name="difficulty" value="{{ current_difficulty }}">{% endif %}
+        {% if current_tag %}<input type="hidden" name="tag" value="{{ current_tag }}">{% endif %}
+    </form>
+
+    <!-- 筛选工具条 -->
+    <div class="toolbar">
+        <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+            <span style="font-size:13px; color: var(--text-secondary);">难度：</span>
+            <a href="/student/dashboard{% if current_tag %}?tag={{ current_tag }}{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}"
+               class="btn btn-sm {% if not current_difficulty %}btn-primary{% else %}btn-outline{% endif %}">全部</a>
+            <a href="/student/dashboard?difficulty=easy{% if current_tag %}&tag={{ current_tag }}{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}"
+               class="btn btn-sm {% if current_difficulty == 'easy' %}btn-primary{% else %}btn-outline{% endif %}">🟢 简单</a>
+            <a href="/student/dashboard?difficulty=medium{% if current_tag %}&tag={{ current_tag }}{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}"
+               class="btn btn-sm {% if current_difficulty == 'medium' %}btn-primary{% else %}btn-outline{% endif %}">🟡 中等</a>
+            <a href="/student/dashboard?difficulty=hard{% if current_tag %}&tag={{ current_tag }}{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}"
+               class="btn btn-sm {% if current_difficulty == 'hard' %}btn-primary{% else %}btn-outline{% endif %}">🔴 困难</a>
+        </div>
+        {% if all_tags %}
+        <div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+            <span style="font-size:13px; color: var(--text-secondary);">标签：</span>
+            <a href="/student/dashboard{% if current_difficulty %}?difficulty={{ current_difficulty }}{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}"
+               class="btn btn-sm {% if not current_tag %}btn-primary{% else %}btn-outline{% endif %}">全部</a>
+            {% for t in all_tags %}
+            <a href="/student/dashboard?tag={{ t }}{% if current_difficulty %}&difficulty={{ current_difficulty }}{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}"
+               class="btn btn-sm {% if current_tag == t %}btn-primary{% else %}btn-outline{% endif %}">{{ t }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 题目列表 -->
+    {% if problems %}
+    <div style="display: grid; gap: 12px;">
+        {% for p in problems %}
+        <a href="/student/problem/{{ p.id }}" style="text-decoration: none; color: inherit;">
+            <div class="card" style="padding: 20px 24px; cursor: pointer;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <div style="font-size: 16px; font-weight: 600; margin-bottom: 6px;">
+                            {{ p.display_order }}. {{ p.title }}
+                            {% set creator = problem_creators.get(p.id) %}
+                            {% if creator %}
+                            <span style="font-size:12px; font-weight:400; color: var(--text-light); margin-left:6px;">by {{ creator }}</span>
+                            {% endif %}
+                        </div>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                            {% if p.difficulty.value == 'easy' %}<span class="badge badge-easy">简单</span>
+                            {% elif p.difficulty.value == 'medium' %}<span class="badge badge-medium">中等</span>
+                            {% else %}<span class="badge badge-hard">困难</span>{% endif %}
+                            {% if p.tags %}
+                                {% for tag in p.tags.split(',') %}
+                                <span class="badge" style="background:#EBF3FC;color:#4A90D9;">{{ tag.strip() }}</span>
+                                {% endfor %}
+                            {% endif %}
+                            {% set rate = problem_score_rates.get(p.id) %}
+                            {% if rate is not none %}
+                            <span class="badge" style="font-weight:600; {% if rate >= 80 %}background:#F6FFED;color:#389E0D{% elif rate >= 50 %}background:#FFF7E6;color:#D46B08{% else %}background:#FFF1F0;color:#CF1322{% endif %};">📊 得分率 {{ rate }}%</span>
+                            {% else %}
+                            <span class="badge" style="background:#F5F5F5;color:#A0AEC0;">📊 暂无提交</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <span style="color: var(--text-light); font-size: 20px;">→</span>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+
+    <!-- 分页 -->
+    {% if total_pages > 1 %}
+    <div style="display:flex; justify-content:center; gap:8px; margin-top:20px;">
+        {% if page > 1 %}
+        <a href="/student/dashboard?page={{ page - 1 }}{% if current_difficulty %}&difficulty={{ current_difficulty }}{% endif %}{% if current_tag %}&tag={{ current_tag }}{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}"
+           class="btn btn-sm btn-outline">← 上一页</a>
+        {% endif %}
+        <span style="padding:5px 12px; font-size:13px; color:var(--text-secondary);">
+            第 {{ page }}/{{ total_pages }} 页
+        </span>
+        {% if page < total_pages %}
+        <a href="/student/dashboard?page={{ page + 1 }}{% if current_difficulty %}&difficulty={{ current_difficulty }}{% endif %}{% if current_tag %}&tag={{ current_tag }}{% endif %}{% if current_search %}&search={{ current_search }}{% endif %}"
+           class="btn btn-sm btn-outline">下一页 →</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="card">
+        <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <p>暂无符合条件的题目</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+{% block extra_scripts %}{% endblock %}

@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}个人设置 - 小牛客{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>⚙️ 个人设置</h1>
+        <span style="font-size:14px; color:var(--text-secondary);">设置你的账号个性化信息</span>
+    </div>
+
+    {% if saved %}
+    <div class="alert alert-success">✅ 保存成功！</div>
+    {% endif %}
+    {% if error %}
+    <div class="alert alert-error">❌ {{ error }}</div>
+    {% endif %}
+
+    <div class="profile-layout">
+        <!-- 左侧：头像设置 -->
+        <div class="profile-card avatar-card">
+            <h2 class="card-header">我的头像</h2>
+
+            <!-- 当前头像预览 -->
+            <div class="avatar-preview" id="avatar-preview">
+                {% set avatar_url = '/static/avatars/default/1.svg' %}
+                {% if user.avatar %}
+                    {% set avatar_url = '/static/avatars/' + user.avatar %}
+                {% endif %}
+                <img src="{{ avatar_url }}" alt="当前头像" id="avatar-img">
+            </div>
+
+            <form method="POST" action="/profile" enctype="multipart/form-data" id="profile-form">
+                <input type="hidden" name="avatar_value" id="avatar-value" value="{{ user.avatar or 'default/1.svg' }}">
+
+                <!-- 默认头像选择 -->
+                <div class="section-label">选择默认头像</div>
+                <div class="default-avatars">
+                    {% for i in range(1, 9) %}
+                    {% set av_path = 'default/' ~ i ~ '.svg' %}
+                    <div class="avatar-option {% if (user.avatar or 'default/1.svg') == av_path %}selected{% endif %}"
+                         onclick="selectDefaultAvatar('{{ av_path }}', this)">
+                        <img src="/static/avatars/{{ av_path }}" alt="头像{{ i }}">
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <!-- 自定义上传 -->
+                <div class="section-label" style="margin-top:16px;">或上传自定义头像</div>
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-icon">📁</div>
+                    <p>点击选择图片文件</p>
+                    <input type="file" name="avatar_file" id="avatar-file"
+                           accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                           style="display:none;">
+                    <span class="upload-hint">支持 PNG、JPG、GIF、WebP、SVG，最大 2MB</span>
+                </div>
+                <div id="file-name-display" style="display:none; margin-top:8px; font-size:13px; color:var(--text-secondary);"></div>
+        </div>
+
+        <!-- 右侧：基本信息 -->
+        <div class="profile-card info-card">
+            <h2 class="card-header">基本信息</h2>
+                <div class="form-group">
+                    <label>账号</label>
+                    <div style="padding:10px 14px; background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-sm); font-size:14px; color:var(--text-secondary);">
+                        {{ user.username }}
+                    </div>
+                    <div class="form-hint">你的登录账号，不可修改</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="display_name">显示名称</label>
+                    <input type="text" name="display_name" id="display_name" class="form-control"
+                           value="{{ user.display_name or '' }}"
+                           placeholder="例如：杨老师"
+                           maxlength="30">
+                    <div class="form-hint">设置后在学生端将显示此名称而非账号（如"teacher1"→"杨老师"）。不设置则显示账号名。</div>
+                </div>
+
+                <div class="form-group">
+                    <label>性别</label>
+                    <div class="gender-options">
+                        <label class="gender-option">
+                            <input type="radio" name="gender" value="男"
+                                   {% if user.gender == '男' %}checked{% endif %}>
+                            <span>🙋 男</span>
+                        </label>
+                        <label class="gender-option">
+                            <input type="radio" name="gender" value="女"
+                                   {% if user.gender == '女' %}checked{% endif %}>
+                            <span>🙋‍♀️ 女</span>
+                        </label>
+                        <label class="gender-option">
+                            <input type="radio" name="gender" value="无"
+                                   {% if not user.gender or user.gender == '无' %}checked{% endif %}>
+                            <span>— 无</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="bio">个性签名</label>
+                    <textarea name="bio" id="bio" class="form-control"
+                              placeholder="这个人很懒，什么都没写"
+                              rows="3" maxlength="200">{{ user.bio or '' }}</textarea>
+                    <div class="form-hint">最多 200 个字符</div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary btn-lg" style="width:100%;">💾 保存设置</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// ---- 默认头像选择 ----
+function selectDefaultAvatar(path, el) {
+    document.querySelectorAll('.avatar-option').forEach(function(o) {
+        o.classList.remove('selected');
+    });
+    el.classList.add('selected');
+    document.getElementById('avatar-value').value = path;
+    // 更新预览
+    document.getElementById('avatar-img').src = '/static/avatars/' + path;
+    // 清除已选文件
+    document.getElementById('avatar-file').value = '';
+    document.getElementById('file-name-display').style.display = 'none';
+}
+
+// ---- 自定义上传 ----
+(function() {
+    var uploadArea = document.getElementById('upload-area');
+    var fileInput = document.getElementById('avatar-file');
+    var preview = document.getElementById('avatar-img');
+    var fileNameDisplay = document.getElementById('file-name-display');
+
+    uploadArea.addEventListener('click', function() {
+        fileInput.click();
+    });
+
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+
+    uploadArea.addEventListener('dragleave', function() {
+        uploadArea.classList.remove('dragover');
+    });
+
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            handleFileSelect(e.dataTransfer.files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', function() {
+        if (this.files.length > 0) {
+            handleFileSelect(this.files[0]);
+        }
+    });
+
+    function handleFileSelect(file) {
+        // 验证文件大小（2MB）
+        if (file.size > 2 * 1024 * 1024) {
+            alert('图片大小不能超过 2MB');
+            fileInput.value = '';
+            return;
+        }
+        // 验证文件类型
+        var validTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'];
+        if (validTypes.indexOf(file.type) === -1) {
+            alert('请选择 PNG、JPG、GIF、WebP 或 SVG 格式的图片');
+            fileInput.value = '';
+            return;
+        }
+        // 预览
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+        // 显示文件名
+        fileNameDisplay.textContent = '已选择: ' + file.name;
+        fileNameDisplay.style.display = 'block';
+        // 清除默认头像选择状态
+        document.querySelectorAll('.avatar-option').forEach(function(o) {
+            o.classList.remove('selected');
+        });
+        document.getElementById('avatar-value').value = '';
+    }
+})();
+
+// ---- 表单提交前验证 ----
+document.getElementById('profile-form').addEventListener('submit', function(e) {
+    var fileInput = document.getElementById('avatar-file');
+    if (fileInput.files.length > 0) {
+        // 有文件上传，清除 hidden 字段值，后端会以文件为准
+        document.getElementById('avatar-value').value = '';
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}小牛客 - 在线编程评测{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    {% if request.session.get('user_id') %}
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <a href="/" class="navbar-brand">
+            <div class="logo-icon">🐮</div>
+            小牛客
+        </a>
+        <ul class="navbar-nav">
+            <li><a href="/">🏠 主页</a></li>
+            {% if request.session.get('role') == 'teacher' %}
+                <li><a href="/teacher/dashboard">📋 题库</a></li>
+            {% else %}
+                <li><a href="/student/dashboard">📝 题库</a></li>
+            {% endif %}
+            <li class="nav-user" id="nav-user-dropdown">
+                <div class="dropdown-trigger" style="display:flex;align-items:center;gap:8px;">
+                    <span class="nav-avatar-mini">
+                        {% set nav_av = request.session.get('avatar', '') %}
+                        <img src="/static/avatars/{{ nav_av or 'default/1.svg' }}" alt="">
+                    </span>
+                    <span class="nav-display-name">{{ request.session.get('display_name') or request.session.get('username') }}</span>
+                    <span class="role-badge {{ request.session.get('role') }}">
+                        {{ '教师' if request.session.get('role') == 'teacher' else '学生' }}
+                    </span>
+                    <span class="dropdown-arrow">▾</span>
+                </div>
+                <div class="dropdown-menu">
+                    <div class="dropdown-info">
+                        <div class="dropdown-avatar">
+                            <img src="/static/avatars/{{ nav_av or 'default/1.svg' }}" alt="">
+                        </div>
+                        <div class="dropdown-details">
+                            <div class="dropdown-name">{{ request.session.get('display_name') or request.session.get('username') }}</div>
+                            <div class="dropdown-bio">{{ request.session.get('bio') or '这个人很懒，什么都没写' }}</div>
+                            <div class="dropdown-gender">
+                                {% set g = request.session.get('gender') %}
+                                {% if g == '男' %}🙋 男{% elif g == '女' %}🙋‍♀️ 女{% else %}— 无{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <a href="/profile" class="dropdown-item">⚙️ 设置</a>
+                    <div class="dropdown-divider"></div>
+                    <a href="/logout" class="dropdown-item dropdown-logout">🚪 退出登录</a>
+                </div>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+
+    <!-- 主要内容 -->
+    <main>
+        <!-- ====== 日夜切换（所有登录页面共用） ====== -->
+        {% if request.session.get('user_id') %}
+        <div class="theme-toggle" id="theme-toggle">
+            <button class="theme-btn active" data-theme="light" title="白天模式">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            </button>
+            <button class="theme-btn" data-theme="dark" title="黑夜模式">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    {% if request.session.get('user_id') %}
+    <script>
+    (function() {
+        var body = document.body;
+        var btns = document.querySelectorAll('.theme-btn');
+        var saved = localStorage.getItem('xiaoniuke-theme') || 'light';
+        setTheme(saved);
+        btns.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var t = this.getAttribute('data-theme');
+                localStorage.setItem('xiaoniuke-theme', t);
+                setTheme(t);
+            });
+        });
+        function setTheme(theme) {
+            body.classList.remove('theme-light', 'theme-dark');
+            body.classList.add('theme-' + theme);
+            btns.forEach(function(b) {
+                b.classList.remove('active');
+                if (b.getAttribute('data-theme') === theme) b.classList.add('active');
+            });
+        }
+    })();
+    </script>
+    {% endif %}
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

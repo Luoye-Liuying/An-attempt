@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}提交详情 - {{ problem.title }} - 小牛客{% endblock %}
+
+{% block extra_head %}
+<style>
+    .code-preview { font-family:'Consolas','Fira Code',monospace; font-size:12px; max-height:80px; overflow:hidden; white-space:pre-wrap; color:var(--text-secondary); background:var(--bg); padding:8px; border-radius:4px; }
+    .modal-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; align-items:center; justify-content:center; }
+    .modal-overlay.show { display:flex; }
+    .modal-box { background:var(--bg-white); border-radius:12px; width:720px; max-width:94vw; max-height:85vh; display:flex; flex-direction:column; box-shadow:0 12px 48px rgba(0,0,0,0.25); }
+    .modal-header { padding:14px 20px; border-bottom:1px solid var(--border); font-weight:600; font-size:15px; display:flex; align-items:center; justify-content:space-between; }
+    .modal-body { padding:16px 20px; overflow-y:auto; flex:1; }
+    .modal-body pre { background:#FAFBFC; border:1px solid var(--border); border-radius:6px; padding:14px; font-family:'Consolas','Fira Code',monospace; font-size:13px; line-height:1.6; overflow:auto; max-height:500px; white-space:pre-wrap; }
+    .modal-footer { padding:12px 20px; border-top:1px solid var(--border); display:flex; gap:10px; justify-content:flex-end; }
+    .test-mini { font-size:11px; font-family:monospace; padding:2px 6px; border-radius:4px; display:inline-block; margin:1px 2px; }
+    .test-mini.pass { background:#F6FFED; color:#389E0D; }
+    .test-mini.fail { background:#FFF1F0; color:#CF1322; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="flex-between mb-2">
+        <div>
+            <a href="/teacher/dashboard" class="btn btn-outline btn-sm">← 返回题库</a>
+            <span style="margin-left:12px; font-size:18px; font-weight:700;">📋 {{ problem.title }} — 学生提交</span>
+        </div>
+        <span style="font-size:13px; color:var(--text-secondary);">共 {{ submissions|length }} 次提交</span>
+    </div>
+
+    {% if submissions %}
+    <div class="card" style="padding:0; overflow:hidden;">
+        <table class="table" style="margin-bottom:0;">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>学生</th>
+                    <th>时间</th>
+                    <th>状态</th>
+                    <th>得分</th>
+                    <th>测试结果</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in submissions %}
+                <tr>
+                    <td>{{ s.id }}</td>
+                    <td><strong>{{ s.student_name }}</strong></td>
+                    <td>{{ s.created_at }}</td>
+                    <td>
+                        {% if s.compile_status == 'compile_success' %}
+                        <span class="badge badge-success">编译通过</span>
+                        {% else %}
+                        <span class="badge" style="background:#FFF1F0;color:#CF1322;">编译错误</span>
+                        {% endif %}
+                    </td>
+                    <td><strong style="color:{% if s.score >= 60 %}var(--success){% else %}var(--danger){% endif %};">{{ s.score }}/100</strong></td>
+                    <td>
+                        {% if s.test_results %}
+                            {% for tr in s.test_results %}
+                            <span class="test-mini {% if tr.passed %}pass{% else %}fail{% endif %}">
+                                #{{ tr.case }}{% if tr.passed %}✓{% else %}✗{% endif %}
+                            </span>
+                            {% endfor %}
+                        {% else %}<span style="color:var(--text-light);font-size:12px;">—</span>{% endif %}
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-outline" onclick="openCodeModal({{ s.id }})">查看代码</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="card"><div class="empty-state"><div class="empty-icon">📭</div><p>还没有学生提交这道题</p></div></div>
+    {% endif %}
+</div>
+
+<!-- 代码查看模态框 -->
+<div id="code-modal" class="modal-overlay" onclick="closeCodeModal(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <span id="modal-title">📋 提交详情</span>
+            <button class="btn btn-sm btn-outline" onclick="closeCodeModal()">✕</button>
+        </div>
+        <div class="modal-body">
+            <div id="modal-meta" style="font-size:13px; color:var(--text-secondary); margin-bottom:12px; display:flex; gap:16px; flex-wrap:wrap;"></div>
+            <pre id="modal-code"></pre>
+            {% if last_submission and last_submission.compile_error %}
+            <div id="modal-error" style="margin-top:10px; padding:10px; background:#FFF1F0; border-radius:6px; font-size:12px; color:#CF1322; white-space:pre-wrap;"></div>
+            {% endif %}
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="copyCode()">📋 复制代码</button>
+            <button class="btn btn-outline" onclick="closeCodeModal()">关闭</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+window.__submissions = [
+{% for s in submissions %}
+{
+    id: {{ s.id }},
+    student: "{{ s.student_name }}",
+    time: "{{ s.created_at }}",
+    score: {{ s.score }},
+    status: "{{ s.compile_status }}",
+    error: {{ (s.compile_error or '') | tojson | safe }},
+    code: {{ s.code | tojson | safe }}
+}{% if not loop.last %},{% endif %}
+{% endfor %}
+];
+window.__problemTitle = "{{ problem.title }}";
+
+var _modalCode = '';
+
+function openCodeModal(subId) {
+    var subs = window.__submissions || [];
+    var s = null;
+    for (var i = 0; i < subs.length; i++) {
+        if (subs[i].id === subId) { s = subs[i]; break; }
+    }
+    if (!s) return;
+    _modalCode = s.code;
+    document.getElementById('modal-title').textContent = '📋 ' + s.student + ' 的提交 #' + s.id;
+    document.getElementById('modal-meta').innerHTML =
+        '<span>题目: ' + window.__problemTitle + '</span>' +
+        '<span>时间: ' + s.time + '</span>' +
+        '<span>得分: <strong>' + s.score + '/100</strong></span>' +
+        '<span>状态: ' + (s.status === 'compile_success' ? '编译通过' : '编译错误') + '</span>';
+    document.getElementById('modal-code').textContent = s.code;
+    document.getElementById('history-modal') && document.getElementById('history-modal').classList.add('show');
+    document.getElementById('code-modal').classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeCodeModal(e) {
+    if (e && e.target !== document.getElementById('code-modal')) return;
+    document.getElementById('code-modal').classList.remove('show');
+    document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        var modal = document.getElementById('code-modal');
+        if (modal && modal.classList.contains('show')) closeCodeModal();
+    }
+});
+
+function copyCode() {
+    if (!_modalCode) return;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(_modalCode).then(function() { alert('代码已复制'); });
+    } else {
+        var ta = document.createElement('textarea');
+        ta.value = _modalCode; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+        alert('代码已复制');
+    }
+}
+</script>
+{% endblock %}

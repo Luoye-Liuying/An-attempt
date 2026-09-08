@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block title %}编辑题目 - 小牛客{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 960px;">
+    <div class="page-header">
+        <h1>{% if read_only %}👁️ 查看题目{% else %}✏️ 编辑题目{% endif %}</h1>
+        <a href="/teacher/dashboard" class="btn btn-outline btn-sm">← 返回列表</a>
+    </div>
+    {% if read_only %}
+    <div class="alert alert-info">这是其他教师创建的题目，仅供查看，不可编辑。</div>
+    {% endif %}
+
+    <div class="card">
+        <form method="POST" action="/teacher/problems/{{ problem.id }}/edit" onsubmit="return prepareSubmit()">
+            <div class="form-group">
+                <label for="title">题目标题 *</label>
+                <input type="text" id="title" name="title"
+                       class="form-control" value="{{ problem.title }}"
+                       {% if read_only %}readonly{% endif %} required>
+            </div>
+
+            <div class="form-group">
+                <label for="difficulty">难度等级</label>
+                <select id="difficulty" name="difficulty" class="form-control">
+                    <option value="easy" {% if problem.difficulty.value == 'easy' %}selected{% endif %}>🟢 简单</option>
+                    <option value="medium" {% if problem.difficulty.value == 'medium' %}selected{% endif %}>🟡 中等</option>
+                    <option value="hard" {% if problem.difficulty.value == 'hard' %}selected{% endif %}>🔴 困难</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="tag-input">知识点标签</label>
+                <div class="tag-input-wrapper">
+                    <div class="tag-chips" id="tag-chips"></div>
+                    <input type="text" id="tag-input"
+                           class="tag-text-input"
+                           placeholder="输入标签后按回车或逗号添加"
+                           autocomplete="off">
+                </div>
+                <input type="hidden" id="tags" name="tags" value="{{ problem.tags or '' }}">
+                <span class="form-hint">按 <strong>回车键</strong> 或 <strong>逗号</strong> 添加标签</span>
+            </div>
+
+            <div class="form-group">
+                <label for="statement">题目描述 *</label>
+                <textarea id="statement" name="statement"
+                          class="form-control" rows="8"
+                          required>{{ problem.statement }}</textarea>
+            </div>
+
+            {% if not read_only %}
+            <!-- AI 辅助生成 -->
+            <div class="form-group" style="background:#F0F7FF; padding:16px; border-radius:8px; border:1px dashed var(--primary);">
+                <label style="margin-bottom:8px;">🤖 AI 辅助生成</label>
+                <p style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">点击按钮，AI 将重新生成参考解答和测试用例</p>
+                <button type="button" id="ai-generate-btn" class="btn btn-outline" onclick="aiGenerate()">✨ AI 重新生成</button>
+                <span id="ai-status" style="margin-left:10px; font-size:13px; color:var(--text-secondary);"></span>
+            </div>
+            {% endif %}
+
+            <div class="form-group">
+                <label for="standard_answer">参考解答 (Python) *</label>
+                <textarea id="standard_answer" name="standard_answer"
+                          class="form-control" rows="8"
+                          style="font-family: 'Fira Code', 'Consolas', monospace;"
+                          {% if read_only %}readonly{% endif %}>{{ problem.standard_answer or '' }}</textarea>
+                <span class="form-hint">参考解答用于展示给学生参考</span>
+            </div>
+
+            <!-- 测试用例 -->
+            <div class="form-group">
+                <label>🧪 测试用例</label>
+                <p style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">
+                    每组输入/输出用例，学生代码会逐组运行比对
+                </p>
+                <div id="test-cases-container" style="max-height:400px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; padding:12px; background:var(--bg);">
+                    <div id="test-cases-list"></div>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="addTestCase()" style="margin-top:8px;">
+                        + 添加测试用例
+                    </button>
+                </div>
+                <input type="hidden" id="test_cases_json" name="test_cases_json" value="{{ test_cases_json }}">
+                <span class="form-hint">
+                    已添加 <strong id="tc-count">0</strong> 组测试用例（建议10组）
+                </span>
+            </div>
+
+            <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
+                <a href="/teacher/dashboard" class="btn btn-outline">{% if read_only %}返回{% else %}取消{% endif %}</a>
+                {% if not read_only %}
+                <button type="submit" class="btn btn-primary">💾 保存修改</button>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// 标签管理
+var tagSet = [];
+
+(function() {
+    var existingTags = document.getElementById('tags').value;
+    if (existingTags) {
+        tagSet = existingTags.split(',').map(function(t) { return t.trim(); }).filter(function(t) { return t; });
+        renderTags();
+    }
+})();
+
+function renderTags() {
+    var container = document.getElementById('tag-chips');
+    container.innerHTML = '';
+    tagSet.forEach(function(tag, index) {
+        var chip = document.createElement('span');
+        chip.className = 'tag-chip';
+        chip.innerHTML = tag + '<span class="tag-chip-remove" onclick="removeTag(' + index + ')">✕</span>';
+        container.appendChild(chip);
+    });
+    document.getElementById('tags').value = tagSet.join(',');
+}
+
+function addTag(tag) {
+    tag = tag.trim();
+    if (tag && tagSet.indexOf(tag) === -1) { tagSet.push(tag); renderTags(); }
+}
+
+function removeTag(index) { tagSet.splice(index, 1); renderTags(); }
+
+document.getElementById('tag-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+        e.preventDefault();
+        var val = this.value.replace(',', '').trim();
+        if (val) { addTag(val); this.value = ''; }
+    }
+});
+
+document.getElementById('tag-input').addEventListener('blur', function() {
+    var val = this.value.trim();
+    if (val) { addTag(val); this.value = ''; }
+});
+
+document.querySelector('.tag-input-wrapper').addEventListener('click', function(e) {
+    if (e.target === this || e.target.id === 'tag-chips') {
+        document.getElementById('tag-input').focus();
+    }
+});
+
+// 测试用例管理
+var testCases = [];
+
+(function() {
+    var existingJson = document.getElementById('test_cases_json').value;
+    if (existingJson) {
+        try {
+            testCases = JSON.parse(existingJson);
+        } catch(e) {
+            testCases = [];
+        }
+    }
+    renderTestCases();
+})();
+
+function renderTestCases() {
+    var container = document.getElementById('test-cases-list');
+    container.innerHTML = '';
+    testCases.forEach(function(tc, index) {
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex; gap:8px; margin-bottom:8px; align-items:center;';
+        row.innerHTML =
+            '<span style="font-size:12px; color:var(--text-light); min-width:30px;">#' + (index + 1) + '</span>' +
+            '<input type="text" class="form-control" style="flex:1; font-family:monospace; font-size:13px;"' +
+            '  value="' + escapeHtml(tc.input || '') + '"' +
+            '  onchange="testCases[' + index + '].input = this.value; syncTestCases();">' +
+            '<span style="color:var(--text-light);">→</span>' +
+            '<input type="text" class="form-control" style="flex:1; font-family:monospace; font-size:13px;"' +
+            '  value="' + escapeHtml(tc.output || '') + '"' +
+            '  onchange="testCases[' + index + '].output = this.value; syncTestCases();">' +
+            '<button type="button" class="btn btn-sm btn-danger" style="min-width:30px;"' +
+            '  onclick="removeTestCase(' + index + ')">✕</button>';
+        container.appendChild(row);
+    });
+    document.getElementById('tc-count').textContent = testCases.length;
+    syncTestCases();
+}
+
+function addTestCase() {
+    testCases.push({input: '', output: ''});
+    renderTestCases();
+}
+
+function removeTestCase(index) {
+    testCases.splice(index, 1);
+    renderTestCases();
+}
+
+function syncTestCases() {
+    var valid = testCases.filter(function(tc) { return tc.input.trim() || tc.output.trim(); });
+    document.getElementById('test_cases_json').value = JSON.stringify(valid);
+    document.getElementById('tc-count').textContent = valid.length;
+}
+
+function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function prepareSubmit() {
+    var input = document.getElementById('tag-input');
+    if (input.value.trim()) { addTag(input.value.trim()); }
+    document.getElementById('tags').value = tagSet.join(',');
+    syncTestCases();
+    return true;
+}
+
+// ===== AI 生成（编辑页面版本）=====
+{% if not read_only %}
+async function aiGenerate() {
+    var title = document.getElementById('title').value.trim();
+    var statement = document.getElementById('statement').value.trim();
+    if (!title || !statement) { alert('请确保题目标题和描述不为空'); return; }
+    var btn = document.getElementById('ai-generate-btn');
+    var status = document.getElementById('ai-status');
+    btn.disabled = true; btn.textContent = '⏳ 生成中...'; status.textContent = 'AI 正在思考...';
+
+    var fd = new FormData();
+    fd.append('title', title);
+    fd.append('statement', statement);
+    fd.append('tags', document.getElementById('tags').value);
+    fd.append('difficulty', document.getElementById('difficulty').value);
+
+    try {
+        var resp = await fetch('/teacher/problems/ai-generate', { method: 'POST', body: fd });
+        var data = await resp.json();
+        if (data.success) {
+            document.getElementById('standard_answer').value = data.standard_answer || '';
+            if (data.test_cases && data.test_cases.length > 0) {
+                testCases = data.test_cases; renderTestCases();
+            }
+            status.textContent = '✅ 生成成功！'; status.style.color = 'var(--success)';
+        } else {
+            status.textContent = '❌ ' + (data.error || '失败'); status.style.color = 'var(--danger)';
+        }
+    } catch(e) {
+        status.textContent = '❌ 网络错误'; status.style.color = 'var(--danger)';
+    } finally {
+        btn.disabled = false; btn.textContent = '✨ AI 重新生成';
+    }
+}
+{% endif %}
+</script>
+{% endblock %}

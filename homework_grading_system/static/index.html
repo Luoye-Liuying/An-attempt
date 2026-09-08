@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>作业批改系统 v4.4</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    :root {
+      --p: #2563eb;
+      --pl: #dbeafe;
+      --pd: #1d4ed8;
+      --s: #16a34a;
+      --sl: #dcfce7;
+      --d: #dc2626;
+      --dl: #fee2e2;
+      --g1: #f8fafc;
+      --g2: #f1f5f9;
+      --g3: #e2e8f0;
+      --g4: #cbd5e1;
+      --g5: #64748b;
+      --g6: #475569;
+      --g7: #334155;
+      --g8: #1e293b;
+      --r: 12px;
+      --rs: 8px;
+      --sh: 0 1px 3px rgba(0, 0, 0, .08)
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--g1);
+      color: var(--g8);
+      line-height: 1.6;
+      min-height: 100vh
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 16px
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 16px
+    }
+
+    h1 span {
+      color: var(--p)
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 16px;
+      background: var(--g2);
+      border-radius: 24px;
+      padding: 3px
+    }
+
+    .tab-btn {
+      padding: 8px 20px;
+      border-radius: 22px;
+      border: none;
+      cursor: pointer;
+      font-size: .9rem;
+      font-weight: 500;
+      background: transparent;
+      color: var(--g5)
+    }
+
+    .tab-btn.active {
+      background: #fff;
+      color: var(--g8);
+      box-shadow: var(--sh)
+    }
+
+    .tab-panel {
+      display: none
+    }
+
+    .tab-panel.active {
+      display: block
+    }
+
+    .mode-toggle {
+      display: flex;
+      background: var(--g2);
+      border-radius: 24px;
+      padding: 3px;
+      margin-bottom: 8px
+    }
+
+    .mode-btn {
+      padding: 6px 16px;
+      border-radius: 22px;
+      border: none;
+      cursor: pointer;
+      font-size: .85rem;
+      font-weight: 500;
+      background: transparent;
+      color: var(--g5)
+    }
+
+    .mode-btn.active {
+      background: #fff;
+      color: var(--g8);
+      box-shadow: var(--sh)
+    }
+
+    .mode-desc {
+      font-size: .7rem;
+      color: var(--g4);
+      margin-bottom: 12px
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--g3);
+      border-radius: var(--r);
+      padding: 28px 20px;
+      text-align: center;
+      cursor: pointer;
+      background: #fff;
+      margin-bottom: 12px
+    }
+
+    .drop-zone:hover {
+      border-color: var(--p);
+      background: var(--pl)
+    }
+
+    .drop-zone.has-file {
+      border-style: solid;
+      border-color: var(--s);
+      background: #f0fdf4
+    }
+
+    .drop-zone input {
+      display: none
+    }
+
+    .drop-zone .dz-icon {
+      font-size: 2rem;
+      display: block;
+      margin-bottom: 8px
+    }
+
+    .drop-zone h3 {
+      font-size: 1rem;
+      color: var(--g7)
+    }
+
+    .drop-zone p {
+      font-size: .8rem;
+      color: var(--g4)
+    }
+
+    .file-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+      justify-content: center
+    }
+
+    .file-badge {
+      background: var(--pl);
+      color: var(--pd);
+      padding: 4px 12px;
+      border-radius: 16px;
+      font-size: .8rem;
+      display: flex;
+      align-items: center;
+      gap: 6px
+    }
+
+    .file-badge .rm {
+      cursor: pointer;
+      opacity: .6
+    }
+
+    .file-badge .rm:hover {
+      opacity: 1;
+      color: var(--d)
+    }
+
+    .options-bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 16px
+    }
+
+    .options-bar label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: .85rem;
+      color: var(--g6);
+      cursor: pointer
+    }
+
+    .options-bar input[type=checkbox] {
+      width: 15px;
+      height: 15px;
+      accent-color: var(--p)
+    }
+
+    .btn-go {
+      padding: 8px 28px;
+      background: var(--p);
+      color: #fff;
+      border: none;
+      border-radius: var(--rs);
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-left: auto
+    }
+
+    .btn-go:hover {
+      background: var(--pd)
+    }
+
+    .btn-go:disabled {
+      opacity: .5;
+      cursor: not-allowed
+    }
+
+    .progress {
+      display: none;
+      background: #fff;
+      border-radius: var(--r);
+      padding: 16px;
+      box-shadow: var(--sh);
+      margin-bottom: 16px
+    }
+
+    .progress.active {
+      display: block
+    }
+
+    .progress-text {
+      font-size: .85rem;
+      color: var(--g5);
+      margin-bottom: 6px
+    }
+
+    .progress-sub {
+      font-size: .75rem;
+      color: var(--g4)
+    }
+
+    .error {
+      display: none;
+      background: var(--dl);
+      color: var(--d);
+      padding: 12px 16px;
+      border-radius: var(--rs);
+      margin-bottom: 16px;
+      font-size: .85rem
+    }
+
+    .error.active {
+      display: block
+    }
+
+    .score-card {
+      background: #fff;
+      border-radius: var(--r);
+      padding: 18px 22px;
+      box-shadow: var(--sh);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap
+    }
+
+    .score-main {
+      flex: 1;
+      min-width: 200px;
+      background: #fff;
+      border-radius: var(--r);
+      padding: 18px;
+      box-shadow: var(--sh);
+      display: flex;
+      align-items: center;
+      gap: 16px
+    }
+
+    .score-circle {
+      position: relative;
+      width: 70px;
+      height: 70px;
+      flex-shrink: 0
+    }
+
+    .score-num {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center
+    }
+
+    .score-num .big {
+      font-size: 1.2rem;
+      font-weight: 800
+    }
+
+    .score-num .small {
+      font-size: .6rem;
+      color: var(--g4)
+    }
+
+    .score-info h2 {
+      font-size: 1rem;
+      margin-bottom: 4px
+    }
+
+    .score-info p {
+      font-size: .8rem;
+      color: var(--g5);
+      margin-bottom: 4px
+    }
+
+    .score-meta {
+      display: flex;
+      gap: 10px;
+      font-size: .75rem;
+      color: var(--g4)
+    }
+
+    .score-meta b {
+      color: var(--g7)
+    }
+
+    .q-card {
+      background: #fff;
+      border-radius: var(--rs);
+      box-shadow: var(--sh);
+      margin-bottom: 8px;
+      overflow: hidden;
+      animation: fadeIn .3s
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    .q-hdr {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      cursor: pointer
+    }
+
+    .q-hdr:hover {
+      background: var(--g1)
+    }
+
+    .q-st {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .9rem;
+      font-weight: 700;
+      flex-shrink: 0
+    }
+
+    .q-st.ok {
+      background: var(--sl);
+      color: var(--s)
+    }
+
+    .q-st.no {
+      background: var(--dl);
+      color: var(--d)
+    }
+
+    .q-tt {
+      flex: 1;
+      font-weight: 600;
+      font-size: .85rem
+    }
+
+    .q-sc {
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: .75rem;
+      font-weight: 700
+    }
+
+    .q-sc.ok {
+      background: var(--sl);
+      color: var(--s)
+    }
+
+    .q-sc.no {
+      background: var(--dl);
+      color: var(--d)
+    }
+
+    .q-ar {
+      color: var(--g4)
+    }
+
+    .q-card.open .q-ar {
+      transform: rotate(180deg)
+    }
+
+    .q-bd {
+      display: none;
+      padding: 0 14px 14px;
+      border-top: 1px solid var(--g2);
+      font-size: .83rem
+    }
+
+    .q-card.open .q-bd {
+      display: block
+    }
+
+    .q-f {
+      margin-top: 10px
+    }
+
+    .q-fl {
+      font-size: .7rem;
+      color: var(--g4);
+      margin-bottom: 2px
+    }
+
+    .q-fv {
+      color: var(--g7)
+    }
+
+    .q-fv.a {
+      color: var(--d)
+    }
+
+    .q-fv.s {
+      color: var(--p)
+    }
+
+    .q-img {
+      margin-top: 10px;
+      max-width: 100%;
+      border-radius: var(--rs);
+      border: 1px solid var(--g2)
+    }
+
+    .chat-panel {
+      background: #fff;
+      border-radius: var(--r);
+      box-shadow: var(--sh);
+      margin-top: 16px;
+      overflow: hidden
+    }
+
+    .chat-hdr {
+      padding: 10px 16px;
+      background: var(--g2);
+      font-weight: 600;
+      font-size: .9rem
+    }
+
+    .chat-msgs {
+      max-height: 320px;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 50px
+    }
+
+    .chat-msg {
+      max-width: 85%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: .82rem;
+      line-height: 1.5;
+      white-space: pre-wrap
+    }
+
+    .chat-msg.u {
+      align-self: flex-end;
+      background: var(--p);
+      color: #fff
+    }
+
+    .chat-msg.a {
+      align-self: flex-start;
+      background: var(--g2);
+      color: var(--g8)
+    }
+
+    .chat-msg.s {
+      align-self: center;
+      font-size: .75rem;
+      color: var(--g4);
+      font-style: italic
+    }
+
+    .chat-row {
+      display: flex;
+      gap: 8px;
+      padding: 10px 16px;
+      border-top: 1px solid var(--g2)
+    }
+
+    .chat-row input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid var(--g3);
+      border-radius: 20px;
+      font-size: .85rem;
+      outline: none
+    }
+
+    .chat-row input:focus {
+      border-color: var(--p)
+    }
+
+    .chat-row button {
+      padding: 8px 18px;
+      background: var(--p);
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: .85rem
+    }
+
+    .chat-row button:disabled {
+      opacity: .5
+    }
+
+    .chat-row input:disabled {
+      background: var(--g1)
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px
+    }
+
+    .h-item {
+      background: #fff;
+      border-radius: var(--rs);
+      padding: 12px 16px;
+      box-shadow: var(--sh);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer
+    }
+
+    .h-item:hover {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, .08)
+    }
+
+    .h-sc {
+      font-size: 1.2rem;
+      font-weight: 700;
+      min-width: 55px
+    }
+
+    .h-sc.good {
+      color: var(--s)
+    }
+
+    .h-sc.bad {
+      color: var(--d)
+    }
+
+    .h-info {
+      flex: 1
+    }
+
+    .h-name {
+      font-size: .85rem;
+      font-weight: 600
+    }
+
+    .h-meta {
+      font-size: .7rem;
+      color: var(--g4)
+    }
+
+    .h-del {
+      padding: 4px 10px;
+      border: 1px solid var(--g3);
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: .75rem;
+      color: var(--g5)
+    }
+
+    .h-del:hover {
+      border-color: var(--d);
+      color: var(--d)
+    }
+
+    .empty {
+      text-align: center;
+      padding: 40px;
+      color: var(--g4)
+    }
+
+    .empty .ic {
+      font-size: 3rem
+    }
+
+    @media(max-width:768px) {
+      .score-card {
+        flex-direction: column
+      }
+
+      .chat-msg {
+        max-width: 92%
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <h1>📝 <span>作业</span>批改系统 v4.4</h1>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="grade">📋 批改</button>
+      <button class="tab-btn" data-tab="history">📚 历史</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-grade">
+      <div class="mode-toggle" id="modeToggle">
+        <button class="mode-btn" data-mode="aliyun">阿里云OCR</button>
+        <button class="mode-btn active" data-mode="mimo_direct">MiMo直连</button>
+      </div>
+      <div class="mode-desc">MiMo 逐题批改实时推送</div>
+
+      <div class="drop-zone" id="dropZone">
+        <span class="dz-icon">📷</span>
+        <h3>点击上传试卷</h3>
+        <p>拖拽或点击选择，手机自动弹出相机</p>
+        <input type="file" id="fileInput" accept="image/*" capture="environment">
+        <div class="file-list" id="fileList"></div>
+      </div>
+
+      <div class="options-bar">
+        <label><input type="checkbox" id="optDeskew" checked>透视校正</label>
+        <label><input type="checkbox" id="optEnhance" checked>图像增强</label>
+        <button class="btn-go" id="btnGo" disabled>🚀 开始批改</button>
+      </div>
+
+      <div class="progress" id="progress">
+        <div class="progress-text" id="progText"></div>
+        <div class="progress-sub" id="progSub"></div>
+      </div>
+      <div class="error" id="error"></div>
+
+      <div class="score-card" id="scoreCard" style="display:none"></div>
+      <div id="questionCards"></div>
+
+      <div class="chat-panel">
+        <div class="chat-hdr">💬 AI辅导对话</div>
+        <div class="chat-msgs" id="chatMsgs">
+          <div class="chat-msg s">上传试卷批改后可在此与AI讨论</div>
+        </div>
+        <div class="chat-row">
+          <input type="text" id="chatInput" placeholder="批改完成后即可提问..." disabled
+            onkeydown="if(event.key==='Enter')sendChat()">
+          <button id="btnChat" onclick="sendChat()" disabled>发送</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-history">
+      <div class="history-list" id="historyList">
+        <div class="empty">
+          <div class="ic">📭</div>
+          <p>暂无记录</p>
+        </div>
+      </div>
+      <div id="historyDetail"></div>
+    </div>
+  </div>
+
+  <script>
+    const Q = s => document.querySelector(s), QA = s => document.querySelectorAll(s);
+
+    let S = { mode: 'mimo_direct', file: null, taskId: null, chatHistory: [], streaming: false, results: [] };
+
+    // Tabs
+    document.querySelector('.tabs').onclick = e => {
+      const b = e.target.closest('.tab-btn'); if (!b) return;
+      QA('.tab-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      QA('.tab-panel').forEach(x => x.classList.remove('active'));
+      Q('#tab-' + b.dataset.tab).classList.add('active');
+      if (b.dataset.tab === 'history') loadHistory();
+    };
+
+    // Mode
+    Q('#modeToggle').onclick = e => {
+      const b = e.target.closest('.mode-btn'); if (!b) return;
+      QA('#modeToggle .mode-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active'); S.mode = b.dataset.mode;
+    };
+
+    // File
+    const dz = Q('#dropZone'), fi = Q('#fileInput');
+    dz.onclick = () => fi.click();
+    dz.ondragover = e => { e.preventDefault(); dz.classList.add('drag-over') };
+    dz.ondragleave = () => dz.classList.remove('drag-over');
+    dz.ondrop = e => { e.preventDefault(); dz.classList.remove('drag-over'); const f = e.dataTransfer.files[0]; if (f) setFile(f) };
+    fi.onchange = () => { if (fi.files[0]) setFile(fi.files[0]) };
+
+    function setFile(f) {
+      if (f.size > 20 * 1024 * 1024) { err('文件过大:' + f.name); return }
+      S.file = f;
+      dz.classList.add('has-file');
+      Q('#btnGo').disabled = false;
+      Q('#fileList').innerHTML = '<span class="file-badge">' + f.name + ' (' + (f.size / 1024).toFixed(0) + 'KB) <span class="rm" onclick="event.stopPropagation();clearFile()">x</span></span>';
+      fi.value = '';
+    }
+    function clearFile() { S.file = null; Q('#fileList').innerHTML = ''; dz.classList.remove('has-file'); Q('#btnGo').disabled = true; }
+
+    // Submit
+    Q('#btnGo').onclick = start;
+
+    async function start() {
+      if (!S.file || S.streaming) return;
+      S.streaming = true; S.taskId = null; S.chatHistory = []; S.results = [];
+      Q('#scoreCard').style.display = 'none'; Q('#questionCards').innerHTML = '';
+      Q('#progress').classList.add('active'); Q('#progText').textContent = '🔍 正在上传并识别...'; Q('#progSub').textContent = '';
+      Q('#error').classList.remove('active');
+      Q('#btnGo').disabled = true;
+      Q('#chatMsgs').innerHTML = '<div class="chat-msg s">🤖 MiMo 逐题分析中，结果将实时显示...</div>';
+      Q('#chatInput').disabled = true; Q('#btnChat').disabled = true;
+
+      const fd = new FormData(); fd.append('image', S.file);
+      const p = new URLSearchParams({ enhance: Q('#optEnhance').checked, _t: Date.now() });
+
+      try {
+        const r = await fetch('/api/grade/stream?' + p, { method: 'POST', body: fd });
+        if (!r.ok) { const e = await r.json().catch(() => ({ error: 'HTTP ' + r.status })); throw new Error(e.error || 'fail') }
+
+        const reader = r.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+
+          const chunks = buf.split('\n\n');
+          buf = chunks.pop();
+
+          for (const chunk of chunks) {
+            if (!chunk.trim()) continue;
+            let ev = 'message', data = '';
+            for (const line of chunk.split('\n')) {
+              if (line.startsWith('event: ')) ev = line.slice(7).trim();
+              else if (line.startsWith('data: ')) data = line.slice(6);
+            }
+            if (!data) continue;
+            try { handleSSE(ev, JSON.parse(data)); } catch (e) { }
+          }
+        }
+      } catch (e) { err(e.message) }
+      finally { S.streaming = false; Q('#btnGo').disabled = false; Q('#progress').classList.remove('active'); }
+    }
+
+    function handleSSE(type, d) {
+      if (type === 'progress') {
+        Q('#progText').textContent = d.msg || '处理中...';
+      } else if (type === 'question') {
+        d.index = d.index ?? S.results.length;
+        d.question_text = d.question_text || '';
+        S.results.push(d);
+        addCard(d);
+        Q('#progText').textContent = '📋 已识别 ' + S.results.length + ' 题...';
+      } else if (type === 'overview') {
+        S.taskId = d.task_id;
+        if (d.overview_image) {
+          const ov = document.createElement('div');
+          ov.style.cssText = 'background:#fff;border-radius:8px;padding:16px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.08)';
+          ov.innerHTML = '<div style="font-weight:600;font-size:.9rem;margin-bottom:10px">📷 全图总览</div><img src="data:image/jpeg;base64,' + d.overview_image + '" style="width:100%;max-width:100%;display:block;border-radius:4px;border:1px solid #e2e8f0" loading="lazy">';
+          Q('#questionCards').insertBefore(ov, Q('#questionCards').firstChild);
+        }
+        showScore(d);
+        Q('#chatInput').disabled = false; Q('#btnChat').disabled = false;
+        // 报告
+        let rpt = '📊 批改报告\n总分: ' + fmt(d.total_score) + '/' + fmt(d.max_total_score) + '\n\n';
+        S.results.forEach((q, i) => {
+          rpt += (q.is_correct ? '✅' : '❌') + ' ' + (i + 1) + ': ' + fmt(q.score) + '/' + fmt(q.max_score) + '分\n';
+          rpt += '题目: ' + (q.question_text || '').substring(0, 60) + '\n';
+          if (q.analysis) rpt += '解析: ' + q.analysis.substring(0, 80) + '\n';
+          rpt += '\n';
+        });
+        Q('#chatMsgs').innerHTML = '<div class="chat-msg s">' + esc(rpt) + '</div>';
+        autoSummary(rpt);
+      } else if (type === 'done') {
+        Q('#progText').textContent = '✅ 批改完成！' + S.results.length + '题，耗时' + (d.elapsed || 0) + 's';
+        Q('#progSub').textContent = '';
+      } else if (type === 'error') {
+        err(d.error || '未知错误');
+      }
+    }
+
+    function addCard(q) {
+      const ok = q.is_correct, sc = fmt(q.score), mx = fmt(q.max_score);
+      const card = document.createElement('div');
+      card.className = 'q-card' + (ok ? '' : ' open');
+      card.innerHTML = '<div class="q-hdr" onclick="this.parentElement.classList.toggle(\'open\')">' +
+        '<div class="q-st ' + (ok ? 'ok' : 'no') + '">' + (ok ? '✓' : '✗') + '</div>' +
+        '<div class="q-tt">' + (q.index + 1) + '. ' + (q.question_text || '').substring(0, 50) + '</div>' +
+        '<div class="q-sc ' + (ok ? 'ok' : 'no') + '">' + sc + '/' + mx + '</div>' +
+        '<div class="q-ar">▾</div></div>' +
+        '<div class="q-bd">' +
+        (q.reference_answer ? '<div class="q-f"><div class="q-fl">正确答案</div><div class="q-fv">' + esc(q.reference_answer) + '</div></div>' : '') +
+        (q.analysis ? '<div class="q-f"><div class="q-fl">解析</div><div class="q-fv ' + (ok ? '' : 'a') + '">' + esc(q.analysis) + '</div></div>' : '') +
+        (q.suggestion ? '<div class="q-f"><div class="q-fl">建议</div><div class="q-fv s">' + esc(q.suggestion) + '</div></div>' : '') +
+        '</div>';
+      Q('#questionCards').appendChild(card);
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function done(d) {
+      S.taskId = d.task_id;
+      Q('#progText').textContent = '批改完成！' + (d.question_count || 0) + '题，耗时' + (d.elapsed_seconds || 0) + 's';
+      Q('#progSub').textContent = '';
+      showScore(d);
+      Q('#chatInput').disabled = false; Q('#btnChat').disabled = false;
+      const ok = S.results.filter(q => q.is_correct).length;
+      let rpt = '📊 批改报告\n总分: ' + fmt(d.total_score) + '/' + fmt(d.max_total_score) + ' | 对' + ok + '题/错' + (S.results.length - ok) + '题\n\n';
+      S.results.forEach((q, i) => {
+        rpt += (q.is_correct ? '✅' : '❌') + ' Q' + (i + 1) + ': ' + fmt(q.score) + '/' + fmt(q.max_score) + '分\n';
+        rpt += '题目: ' + (q.question_text || '').substring(0, 60) + '\n';
+        if (q.analysis) rpt += '解析: ' + q.analysis.substring(0, 80) + '\n';
+        rpt += '\n';
+      });
+      Q('#chatMsgs').innerHTML = '<div class="chat-msg s">' + esc(rpt) + '</div>';
+      autoSummary(rpt);
+    }
+
+    async function autoSummary(rpt) {
+      try {
+        const r = await fetch('/api/chat', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ task_id: S.taskId, message: '请用2-3句话总结批改报告：哪些知识点好，哪些需加强，给一个总体建议。', history: [] })
+        });
+        if (!r.ok) throw new Error('fail');
+        const d = await r.json();
+        addChat('a', d.reply);
+        S.chatHistory.push({ role: 'user', content: '请总结' }, { role: 'assistant', content: d.reply });
+      } catch (e) { addChat('a', '总结生成中，可直接提问。') }
+    }
+
+    function showScore(d) {
+      const qn = d.question_count || (d.questions || []).length;
+      const acc = d.max_total_score > 0 ? d.total_score / d.max_total_score : 0, g = acc >= 0.6;
+      Q('#scoreCard').style.display = 'flex';
+      Q('#scoreCard').innerHTML =
+        '<div style="font-size:2rem;font-weight:800;color:' + (g ? 'var(--s)' : 'var(--d)') + '">' + fmt(d.total_score) + '<span style="font-size:.8rem;color:var(--g4)">/' + fmt(d.max_total_score) + '</span></div>' +
+        '<div style="flex:1"><b>' + (g ? '👍 不错' : '📝 加油') + '</b> | ' + (d.summary || '').substring(0, 100) + '</div>' +
+        '<div style="font-size:.75rem;color:var(--g5)">' + qn + '题 | 正确率' + (acc * 100).toFixed(0) + '% | ' + (d.elapsed_seconds || 0) + 's</div>';
+    }
+
+    // Chat
+    async function sendChat() {
+      const inp = Q('#chatInput'), msg = inp.value.trim();
+      if (!msg) return;
+      inp.value = ''; inp.disabled = true; Q('#btnChat').disabled = true;
+      addChat('u', msg);
+
+      // Build grading context from results
+      let ctx = '';
+      if (S.results.length) {
+        ctx = '【已批改的作业】\n总分:' + fmt(S.results.reduce((s, q) => s + q.score, 0)) +
+          '/' + fmt(S.results.reduce((s, q) => s + (q.max_score || 0), 0)) + '\n';
+        S.results.forEach((q, i) => {
+          ctx += (i + 1) + ': ' + (q.is_correct ? '✓' : '✗') + ' ' + fmt(q.score) + '/' + fmt(q.max_score) + '分\n';
+          ctx += '题目: ' + (q.question_text || '') + '\n';
+          ctx += '正确答案: ' + (q.reference_answer || '') + '\n';
+          ctx += '解析: ' + (q.analysis || '') + '\n\n';
+        });
+      }
+      const fullMsg = ctx ? ctx + '\n【学生提问】' + msg : msg;
+
+      try {
+        const r = await fetch('/api/chat', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ task_id: S.taskId, message: fullMsg, history: S.chatHistory })
+        });
+        if (!r.ok) throw new Error('fail');
+        const d = await r.json();
+        addChat('a', d.reply);
+        S.chatHistory.push({ role: 'user', content: msg }, { role: 'assistant', content: d.reply });
+      } catch (e) { addChat('a', '对话出错了') }
+      finally { inp.disabled = false; Q('#btnChat').disabled = false; inp.focus() }
+    }
+
+    function addChat(role, txt) {
+      const el = document.createElement('div'); el.className = 'chat-msg ' + role; el.textContent = txt;
+      Q('#chatMsgs').appendChild(el); Q('#chatMsgs').scrollTop = Q('#chatMsgs').scrollHeight;
+    }
+
+    // History
+    async function loadHistory() {
+      try {
+        const r = await fetch('/api/history?page=1&size=30'), d = await r.json();
+        if (!d.items.length) { Q('#historyList').innerHTML = '<div class="empty"><div class="ic">📭</div><p>暂无记录</p></div>'; Q('#historyDetail').innerHTML = ''; return }
+        Q('#historyList').innerHTML = d.items.map(t => '<div class="h-item" onclick="viewHist(\'' + t.id + '\')">' +
+          '<div class="h-sc ' + (t.accuracy >= 0.6 ? 'good' : 'bad') + '">' + fmt(t.total_score) + '<span style="font-size:.7rem;font-weight:400">/' + fmt(t.max_total_score) + '</span></div>' +
+          '<div class="h-info"><div class="h-name">' + esc(t.filename) + '</div><div class="h-meta">' + (t.question_count || 0) + '题 · 正确率' + ((t.accuracy || 0) * 100).toFixed(0) + '% · ' + (t.created_at || '') + '</div></div>' +
+          '<button class="h-del" onclick="event.stopPropagation();delHist(\'' + t.id + '\')">删除</button></div>').join('');
+      } catch (e) { }
+    }
+    async function viewHist(id) {
+      try {
+        Q('#historyList').style.display = 'none';
+        const r = await fetch('/api/history/' + id), t = await r.json();
+        let html = '<div style="padding:12px"><button onclick="Q(\'#historyList\').style.display=\'\';Q(\'#historyDetail\').innerHTML=\'\'\" style="border:1px solid #cbd5e1;background:#fff;padding:6px 16px;border-radius:16px;cursor:pointer;margin-bottom:12px">← 返回列表</button>' +
+          '<h3 style="margin-bottom:4px">' + esc(t.filename) + '</h3>' +
+          '<div style="font-size:.8rem;color:var(--g5);margin-bottom:12px">总分 ' + fmt(t.total_score) + '/' + fmt(t.max_total_score) + ' · 正确率 ' + ((t.accuracy || 0) * 100).toFixed(0) + '% · ' + (t.question_count || 0) + '题 · ' + (t.created_at || '') + '</div>' +
+          '<p style="font-size:.85rem;color:var(--g6);margin-bottom:14px">' + esc(t.summary || '') + '</p>';
+        (t.questions || []).forEach(q => {
+          const ok = q.is_correct;
+          html += '<div style="background:#fff;border-radius:8px;padding:12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.06)">' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><span style="font-weight:700;color:' + (ok ? 'var(--s)' : 'var(--d)') + '">' + (ok ? '✓' : '✗') + ' ' + (q.question_index + 1) + '</span><span style="color:' + (ok ? 'var(--s)' : 'var(--d)') + ';font-weight:700">' + fmt(q.score) + '/' + fmt(q.max_score) + '分</span></div>' +
+            '<div style="font-size:.8rem;color:var(--g7);margin-bottom:4px">' + esc(q.question_text || '') + '</div>' +
+            (q.reference_answer ? '<div style="font-size:.78rem;color:var(--g6)">答案: ' + esc(q.reference_answer) + '</div>' : '') +
+            (q.analysis ? '<div style="font-size:.78rem;color:' + (ok ? 'var(--g6)' : 'var(--d)') + ';margin-top:4px">解析: ' + esc(q.analysis) + '</div>' : '') +
+            (q.suggestion ? '<div style="font-size:.78rem;color:var(--p);margin-top:4px">建议: ' + esc(q.suggestion) + '</div>' : '') +
+            '</div>';
+        });
+        html += '</div>';
+        Q('#historyDetail').innerHTML = html;
+      } catch (e) { alert('加载失败') }
+    }
+    async function delHist(id) { if (!confirm('删除？')) return; try { await fetch('/api/history/' + id, { method: 'DELETE' }); Q('#historyDetail').innerHTML = ''; Q('#historyList').style.display = ''; loadHistory() } catch (e) { } }
+
+    function err(m) { Q('#error').textContent = '⚠️ ' + m; Q('#error').classList.add('active') }
+    function fmt(n) { return Math.round(Number(n)) }
+    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') }
+  </script>
+</body>
+
+</html>
